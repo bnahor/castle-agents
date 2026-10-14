@@ -137,6 +137,19 @@ The mock misses exactly the reply-thread and after-delivery cases, which is why
 it's a test double and not a router. The live router's one earlier miss
 (a follow-up to a price question marked simple) was fixed in its prompt.
 
+## Ordering guarantees
+
+"Zero order violations" means the mode's own rule was kept, and the modes
+promise different things:
+
+| mode | guarantee | `busy`, mock, mean / p95 |
+|---|---|---:|
+| `strict` | Answers post in exactly the order questions were asked, always. | 5.50 s / 6.70 s |
+| `bounded` (default) | In order, except an answer that has been ready for `max_hold_s` (1.5 s) posts early as a reply to its question. Every early post is marked and counted. | 4.42 s / 6.70 s |
+| `reply` | No ordering across answers; each posts when ready, threaded to its question. | 3.67 s / 6.69 s |
+
+To demo strict ordering on its own: `uv run castle-agents sim busy --ordering strict`.
+
 ## How correctness is checked
 
 Every run writes an append-only JSONL event log to `runs/`. The metrics read
@@ -150,7 +163,7 @@ only the log, and five invariants must be zero on every run:
 | missing posts | every admitted request's slot is resolved |
 | lost steers | every accepted addition is applied, folded into a rewrite, or explicitly dropped |
 
-The tests (66, about 13 s) were audited against a test-audit checklist
+The tests (75, about 13 s) were audited against a test-audit checklist
 ([DECISIONS.md §14](DECISIONS.md)): every assertion is about what was posted,
 which port did the work, or how long it took. None checks internal log events
 or call shapes, and no production code exists only for tests.
