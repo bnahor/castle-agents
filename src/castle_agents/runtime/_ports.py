@@ -15,6 +15,15 @@ class Escalate(Exception):
     pass
 
 
+class Unsuccessful(Exception):
+    """A worker that ends without a real answer, with the text to post in its slot."""
+
+    def __init__(self, text: str, reason: str) -> None:
+        super().__init__(reason)
+        self.text = text
+        self.reason = reason
+
+
 class Router(Protocol):
     async def route(self, batch: Sequence[Inbound], recent: list[RequestView]) -> list[Route]: ...
 

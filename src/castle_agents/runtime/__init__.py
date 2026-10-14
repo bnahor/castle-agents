@@ -10,6 +10,7 @@ from ._ports import (
     QuickAnswerer,
     Researcher,
     Router,
+    Unsuccessful,
     UsageLog,
 )
 
@@ -28,6 +29,7 @@ __all__ = [
     "QuickAnswerer",
     "Researcher",
     "Router",
+    "Unsuccessful",
     "UsageLog",
     "discard",
 ]

@@ -68,6 +68,7 @@ tools = "tools.toml"
 refusal = "I can't help with that one."
 out_of_steps = "I ran out of steps on this one; try narrowing the question."
 cut_short = "(cut short)"
+addition_not_applied = "(I ran out of steps before I could cover your last addition. Ask again to include it.)"
 
 [massive]
 connect_timeout_s = 3.0
