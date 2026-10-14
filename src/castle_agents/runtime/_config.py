@@ -55,6 +55,7 @@ _PLACEHOLDERS: dict[str, set[str]] = {
     "status_one": {"seq", "preview"},
     "status_many": {"seq", "preview", "waiting"},
     "apology": {"seq"},
+    "timed_out": {"seq"},
     "not_processed": set(),
     "follow_up": {"original", "addition"},
     "fold": {"original", "addition"},
@@ -70,6 +71,7 @@ class Phrases(BaseModel, frozen=True):
     status_one: str
     status_many: str
     apology: str
+    timed_out: str
     not_processed: str
     follow_up: str
     fold: str

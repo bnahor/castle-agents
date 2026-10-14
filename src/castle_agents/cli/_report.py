@@ -10,6 +10,8 @@ ROWS = (
     ("messages", "messages"),
     ("requests admitted", "requests"),
     ("answers posted", "answers"),
+    ("failed or timed out", "failed_answers"),
+    ("additions dropped by those", "additions_dropped"),
     ("makespan (s)", "makespan_s"),
     ("latency mean (s)", "latency_mean_s"),
     ("latency p50 (s)", "latency_p50_s"),

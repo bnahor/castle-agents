@@ -12,6 +12,7 @@ from ..domain import (
     Inbound,
     Kind,
     Outbound,
+    Outcome,
     PostKind,
     Request,
     RequestView,
@@ -280,20 +281,27 @@ class ChatRuntime:
         except asyncio.CancelledError:
             note("worker_cancelled")
             raise
+        except TimeoutError:
+            note("worker_timed_out")
+            answer, outcome = self._phrases.timed_out.format(seq=request.seq), Outcome.TIMED_OUT
         except Exception as e:
             note("worker_error", error=repr(e))
-            answer = self._phrases.apology.format(seq=request.seq)
-        self._finish(request, version, answer, note)
+            answer, outcome = self._phrases.apology.format(seq=request.seq), Outcome.FAILED
+        else:
+            outcome = Outcome.ANSWERED
+        self._finish(request, version, answer, outcome, note)
 
-    def _finish(self, request: Request, version: int, answer: str, note: OnEvent) -> None:
+    def _finish(
+        self, request: Request, version: int, answer: str, outcome: Outcome, note: OnEvent
+    ) -> None:
         # Staleness is decided here, not by cancellation: a worker that ignores
         # cancel still cannot post an answer for a version that is no longer current.
         if not request.is_current(version):
             note("stale_dropped", current=request.version)
             return
         request.status = Status.DONE
-        note("done", text=answer)
-        self.orderer.complete(request.seq, answer)
+        note("done", outcome=outcome, text=answer)
+        self.orderer.complete(request.seq, answer, outcome=outcome)
 
     def _noter(self, request: Request, version: int) -> OnEvent:
         def note(event: str, **data: Any) -> None:
@@ -323,6 +331,7 @@ class ChatRuntime:
             version=request.version if request else None,
             reply_to=out.reply_to,
             early=out.released_early,
+            outcome=out.outcome,
             text=out.text,
         )
         if out.kind is not PostKind.SKIP:

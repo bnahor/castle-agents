@@ -33,6 +33,8 @@ class Metrics:
     messages: int = 0
     requests: int = 0
     answers: int = 0
+    failed_answers: int = 0
+    additions_dropped: int = 0
     makespan_s: float = 0.0
     latency_mean_s: float = 0.0
     latency_p50_s: float = 0.0
@@ -225,15 +227,19 @@ class _Tally:
         self.unposted[chat].discard(seq)
 
     def _record_answer(self, e: Event) -> None:
-        self.counts["answers"] += 1
         request, version = e["request"], e["version"]
         timeline = self.timelines[request]
         current = version == timeline.version and version in timeline.done_versions
         if request in self.cancelled or not current:
             self._problem("stale_posts", f"stale answer for {request} (v{version})")
-        for addition in timeline.accepted:
-            if addition not in timeline.covered[version]:
-                self._problem("lost_steers", f"{request} v{version} lost addition {addition}")
+        uncovered = [a for a in timeline.accepted if a not in timeline.covered[version]]
+        if e.get("outcome", "answered") != "answered":
+            self.counts["failed_answers"] += 1
+            self.counts["additions_dropped"] += len(uncovered)
+            return
+        self.counts["answers"] += 1
+        for addition in uncovered:
+            self._problem("lost_steers", f"{request} v{version} lost addition {addition}")
         self.latencies.append((e["t"] - timeline.asked_at) / self.scale)
         self.stages.append(
             Stages(
@@ -275,6 +281,8 @@ _COUNTED = (
     "messages",
     "requests",
     "answers",
+    "failed_answers",
+    "additions_dropped",
     "restarts",
     "steers_applied",
     "escalations",
