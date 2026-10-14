@@ -366,6 +366,22 @@ Not adopted, deliberately: a capability-negotiated worker adapter (sessions,
 resume, replay). It's the right shape for plugging in another harness, but
 with one worker type it would be a refactor with nothing to test it against.
 
+## 18. Second review: four more fixes
+
+A second review of the merged `main` found four issues, all reproduced and fixed
+on their own branches with tests that fail with the fix reverted:
+
+| Finding | Fix |
+|---|---|
+| A speculative quick answer was kept even when the router **rewrote** the question, so the chat could get an answer to the raw text under the rewritten question | A head start is used only when the admitted question is exactly the text it answered |
+| Running out of research steps (and refusals) returned text as an ordinary success; additions drained on the last allowed step were logged as applied but never sent | Workers raise `Unsuccessful`, recorded as a failed outcome; the loop prepares another turn only when another call will happen |
+| A restart dropped the only handle to the superseded worker, so one that deferred cancellation ran on unseen and held pool capacity | Every launched task is owned until it finishes; shutdown cancels, waits, cancels again, then logs anything left as abandoned |
+| Arrival times were keyed by `msg_id` alone, though ids are only unique per chat | Keyed by `(chat, msg_id)` |
+
+It also made the right presentation point: in bounded mode, zero order
+violations means "kept the bounded rule", not "strictly in order". The README
+now states each mode's guarantee and how to demo strict mode alone.
+
 ## What I would do next
 
 - **Pipelined routing** (§3), worth about 0.4 s of mean latency.
