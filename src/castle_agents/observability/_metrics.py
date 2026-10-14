@@ -95,7 +95,7 @@ class _Tally:
         self.ordering = ordering
         self.counts: Counter[str] = Counter()
         self.problems: list[str] = []
-        self.inbound_at: dict[str, float] = {}
+        self.inbound_at: dict[tuple[str, str], float] = {}
         self.timelines: defaultdict[str, _Timeline] = defaultdict(_Timeline)
         self.unposted: defaultdict[str, set[int]] = defaultdict(set)
         self.posts: Counter[tuple[str, int]] = Counter()
@@ -150,14 +150,14 @@ class _Tally:
 
     def _inbound(self, e: Event) -> None:
         self.counts["messages"] += 1
-        self.inbound_at[e["msg_id"]] = e["t"]
+        self.inbound_at[e["chat"], e["msg_id"]] = e["t"]
         if self.first_inbound is None:
             self.first_inbound = e["t"]
 
     def _admit(self, e: Event) -> None:
         self.counts["requests"] += 1
         timeline = self.timelines[e["request"]]
-        timeline.asked_at = self.inbound_at[e["msg_id"]]
+        timeline.asked_at = self.inbound_at[e["chat"], e["msg_id"]]
         timeline.admitted_at = e["t"]
         timeline.version = e["version"]
         self.admitted.add((e["chat"], e["seq"]))
