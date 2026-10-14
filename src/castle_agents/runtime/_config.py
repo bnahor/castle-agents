@@ -28,6 +28,8 @@ class Limits(BaseModel, frozen=True):
     retain_closed: PositiveInt
     request_deadline_s: PositiveFloat
     router_deadline_s: PositiveFloat
+    max_additions: PositiveInt
+    max_addition_chars: PositiveInt
 
     def override(self, **changes: Any) -> Self:
         return self.model_validate(self.model_dump() | changes)
@@ -48,6 +50,8 @@ class Limits(BaseModel, frozen=True):
 
 _PLACEHOLDERS: dict[str, set[str]] = {
     "ack_steer": {"seq"},
+    "too_many_additions": {"seq", "limit"},
+    "addition_too_long": {"seq"},
     "ack_rewrite": {"seq", "preview"},
     "ack_cancel": {"seq"},
     "already_closed": {"seq", "status"},
@@ -64,6 +68,8 @@ _PLACEHOLDERS: dict[str, set[str]] = {
 
 class Phrases(BaseModel, frozen=True):
     ack_steer: str
+    too_many_additions: str
+    addition_too_long: str
     ack_rewrite: str
     ack_cancel: str
     already_closed: str

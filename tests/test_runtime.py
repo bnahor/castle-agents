@@ -418,3 +418,35 @@ async def test_a_request_that_just_became_head_of_line_gets_no_immediate_status(
     await h.until(lambda: sum(p.kind == "status" for p in h.posts) == 2)
     h.release(QQQ)
     await h.idle()
+
+
+async def test_additions_past_the_limit_are_refused_with_a_receipt(make_harness):
+    h = make_harness(max_additions=1)
+    h.say(HEAVY)
+    await h.routed()
+    h.say("also include INTC")
+    h.say("also include AVGO")
+    await h.routed()
+    acks = [p.text for p in h.posts if p.kind == "ack"]
+    assert acks == [
+        "Adding that to #1.",
+        "#1 is at its addition limit (1), so I left that one out. Ask it as a new question?",
+    ]
+    h.release(HEAVY)
+    await h.idle()
+    assert h.slot_posts()[0].text == f"research:{HEAVY} +include INTC"
+
+
+async def test_an_overlong_addition_is_refused_and_the_work_continues(make_harness):
+    h = make_harness(max_addition_chars=20)
+    h.say(HEAVY)
+    await h.routed()
+    h.say("also " + "include every semiconductor company you can find")
+    await h.routed()
+    assert [p.text for p in h.posts if p.kind == "ack"] == [
+        "That's too long to add to #1. Could you send it as a new question?"
+    ]
+    h.release(HEAVY)
+    await h.idle()
+    assert h.scripted.research_calls == [HEAVY]
+    assert h.slot_posts()[0].text == f"research:{HEAVY}"

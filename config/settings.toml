@@ -18,9 +18,13 @@ history_window = 20       # answered exchanges kept per chat for context
 retain_closed = 50        # answered or cancelled requests kept per chat for edits and replies
 request_deadline_s = 90.0 # a request that runs longer is answered with an apology and its slot released
 router_deadline_s = 15.0  # a router call that runs longer falls back to treating messages as new
+max_additions = 5         # additions accepted per request; past this, ask for a new question
+max_addition_chars = 400  # longest single addition accepted
 
 [phrases]
 ack_steer = "Adding that to #{seq}."
+too_many_additions = "#{seq} is at its addition limit ({limit}), so I left that one out. Ask it as a new question?"
+addition_too_long = "That's too long to add to #{seq}. Could you send it as a new question?"
 ack_rewrite = "Updating #{seq}: {preview}"
 ack_cancel = "Okay, dropping #{seq}."
 already_closed = "#{seq} is already {status}."
