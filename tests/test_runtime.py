@@ -7,7 +7,7 @@ import pytest
 
 from castle_agents.domain import Action, Inbound, Kind, RequestView, Route, Steering
 from castle_agents.observability import compute
-from castle_agents.runtime import History, OnEvent, Ordering
+from castle_agents.runtime import History, OnEvent, Ordering, Unsuccessful
 
 from .conftest import DelayedRouter, instant_router
 
@@ -516,3 +516,20 @@ async def test_a_rewritten_question_is_answered_as_rewritten_never_from_the_raw_
     h.say("what does that mean?")
     await h.idle()
     assert [p.text for p in h.slot_posts()] == ["quick:Explain what an ETF is"]
+
+
+class _GivesUp:
+    async def research(
+        self, text: str, history: History, steering: Steering, on_event: OnEvent
+    ) -> str:
+        raise Unsuccessful("I ran out of steps on this one.", "out_of_steps")
+
+
+async def test_an_unsuccessful_worker_posts_its_text_as_a_failure(make_harness):
+    h = make_harness(researcher=_GivesUp())
+    h.say(HEAVY)
+    await h.idle()
+    (post,) = h.slot_posts()
+    assert (post.text, post.outcome) == ("I ran out of steps on this one.", "failed")
+    m = compute(h.log.events)
+    assert (m.answers, m.failed_answers) == (0, 1)

@@ -10,7 +10,7 @@ from anthropic import AsyncAnthropic
 from castle_agents.adapters.claude import ClaudeConfig, ClaudeQuickAnswerer, ClaudeResearcher
 from castle_agents.adapters.mock import MockTools
 from castle_agents.domain import Addition, Steering
-from castle_agents.runtime import Escalate
+from castle_agents.runtime import Escalate, Unsuccessful
 from castle_agents.settings import Settings
 
 
@@ -125,3 +125,41 @@ async def test_quick_path_escalates_on_the_sentinel(settings: Settings):
     fake = FakeMessages([_resp("end_turn", _text(settings.claude.escalate_sentinel))])
     with pytest.raises(Escalate):
         await ClaudeQuickAnswerer(_client(fake), settings.claude).answer("latest price?", [])
+
+
+def _one_step(settings: Settings) -> ClaudeConfig:
+    return settings.claude.model_copy(update={"research_max_steps": 1})
+
+
+async def test_running_out_of_steps_after_a_tool_call_is_unsuccessful(settings: Settings):
+    fake = FakeMessages([_resp("tool_use", _tool("t1", "NVDA"))])
+    events: list[str] = []
+    researcher = ClaudeResearcher(_client(fake), MockTools(), _one_step(settings))
+    with pytest.raises(Unsuccessful) as raised:
+        await researcher.research("q", [], Steering(), lambda kind, **d: events.append(kind))
+    assert raised.value.text == settings.claude.replies.out_of_steps
+    assert len(fake.calls) == 1 and "tool" not in events
+
+
+async def test_an_addition_arriving_during_the_last_allowed_call_is_not_claimed_as_applied(
+    settings: Settings,
+):
+    steering = Steering()
+    fake = FakeMessages(
+        [_resp("end_turn", _text("NVDA closed at $228.52."))],
+        during_call=lambda n: steering.push(Addition("m3", "include INTC"), 1),
+    )
+    events: list[str] = []
+    researcher = ClaudeResearcher(_client(fake), MockTools(), _one_step(settings))
+    with pytest.raises(Unsuccessful) as raised:
+        await researcher.research("q", [], steering, lambda kind, **d: events.append(kind))
+    assert raised.value.text.startswith("NVDA closed at $228.52.")
+    assert settings.claude.replies.addition_not_applied in raised.value.text
+    assert "steer_applied" not in events and steering.pending()
+
+
+async def test_a_refusal_is_unsuccessful(settings: Settings):
+    fake = FakeMessages([_resp("refusal")])
+    researcher = ClaudeResearcher(_client(fake), MockTools(), settings.claude)
+    with pytest.raises(Unsuccessful, match="refusal"):
+        await researcher.research("q", [], Steering(), _ignore)

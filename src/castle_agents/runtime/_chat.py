@@ -23,7 +23,7 @@ from ..domain import (
 )
 from ._executor import Job, Scope, Superseded
 from ._orderer import Orderer
-from ._ports import OnEvent
+from ._ports import OnEvent, Unsuccessful
 
 if TYPE_CHECKING:
     from ._dispatcher import Dispatcher
@@ -304,6 +304,9 @@ class ChatRuntime:
         except asyncio.CancelledError:
             note("worker_cancelled")
             raise
+        except Unsuccessful as e:
+            note("worker_unsuccessful", reason=e.reason)
+            answer, outcome = e.text, Outcome.FAILED
         except TimeoutError:
             note("worker_timed_out")
             answer, outcome = self._phrases.timed_out.format(seq=request.seq), Outcome.TIMED_OUT

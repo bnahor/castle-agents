@@ -13,7 +13,7 @@ from anthropic.types.beta import (
 )
 
 from ...domain import Steering
-from ...runtime import History, MarketTools, OnEvent, UsageLog
+from ...runtime import History, MarketTools, OnEvent, Unsuccessful, UsageLog
 from ._config import ClaudeConfig
 from ._content import cached_system, ignore_usage, text_of, with_history
 
@@ -39,20 +39,31 @@ class ClaudeResearcher:
         messages: list[BetaMessageParam] = [
             {"role": "user", "content": with_history(text, history, self._config)}
         ]
-        for _ in range(self._config.research_max_steps):
+        last_step = self._config.research_max_steps - 1
+        for step in range(self._config.research_max_steps):
             response = await self._sample(messages)
             if response.stop_reason == "refusal":
-                return self._config.replies.refusal
+                raise Unsuccessful(self._config.replies.refusal, "refusal")
+            calls_tools = response.stop_reason == "tool_use"
+            if not calls_tools and not steering.pending():
+                return self._final_text(response)
+            if step == last_step:
+                raise self._out_of_steps(response, calls_tools)
             messages.append({"role": "assistant", "content": response.content})
-            if response.stop_reason == "tool_use":
+            if calls_tools:
                 messages.append(await self._tool_turn(response, steering, on_event))
-            elif steering.pending():
+            else:
                 messages.append(
                     _user_turn(self._steering_blocks(steering, on_event, "final_check"))
                 )
-            else:
-                return self._final_text(response)
-        return self._config.replies.out_of_steps
+        raise AssertionError("unreachable: the last step always returns or raises")
+
+    def _out_of_steps(self, response: BetaMessage, calls_tools: bool) -> Unsuccessful:
+        replies = self._config.replies
+        if calls_tools:
+            return Unsuccessful(replies.out_of_steps, "out_of_steps")
+        text = f"{self._final_text(response)}\n\n{replies.addition_not_applied}"
+        return Unsuccessful(text, "addition_not_applied")
 
     async def _sample(self, messages: list[BetaMessageParam]) -> BetaMessage:
         response = await self._client.beta.messages.create(

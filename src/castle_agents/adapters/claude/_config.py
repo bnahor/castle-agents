@@ -21,6 +21,7 @@ class ClaudeReplies(BaseModel, frozen=True):
     refusal: str
     out_of_steps: str
     cut_short: str
+    addition_not_applied: str
 
 
 class ToolSpec(BaseModel, frozen=True):
