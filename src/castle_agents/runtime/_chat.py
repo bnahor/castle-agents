@@ -187,8 +187,14 @@ class ChatRuntime:
         addition = Addition(msg.msg_id, text)
         request.additions.append(addition)
         self._log("addition_accepted", request=request.id, addition=addition.id, text=text)
-        if request.status is Status.RUNNING and request.kind is Kind.HEAVY:
-            request.steering.push(addition)
+        live = request.status is Status.RUNNING and request.kind is Kind.HEAVY
+        if live and request.steering.push(addition, request.version):
+            self._log(
+                "addition_delivered",
+                request=request.id,
+                addition=addition.id,
+                generation=request.version,
+            )
         else:
             self._restart(request, why="addition to a request that was not mid-tool-loop")
         self._ack(msg, request, self._phrases.ack_steer.format(seq=request.seq))
@@ -243,7 +249,8 @@ class ChatRuntime:
             self._amend_in_queue(request)
             return
         request.version += 1
-        request.steering = Steering()
+        request.steering.close()
+        request.steering = Steering(request.version)
         request.cancel_task()
         self.orderer.retract(request.seq, preview=self._effective_text(request))
         self._log("restart", request=request.id, version=request.version, why=why)
@@ -265,6 +272,7 @@ class ChatRuntime:
 
     def _drop(self, request: Request) -> None:
         request.version += 1
+        request.steering.close()
         request.cancel_task()
         request.status = Status.CANCELLED
         self._log("cancel", request=request.id, version=request.version)
