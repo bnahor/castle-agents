@@ -533,3 +533,63 @@ async def test_an_unsuccessful_worker_posts_its_text_as_a_failure(make_harness):
     assert (post.text, post.outcome) == ("I ran out of steps on this one.", "failed")
     m = compute(h.log.events)
     assert (m.answers, m.failed_answers) == (0, 1)
+
+
+class _DefersCancellation:
+    """The first generation swallows `deferrals` cancellations; replacements answer at once."""
+
+    def __init__(self, deferrals: int) -> None:
+        self.deferrals = deferrals
+        self.gate = asyncio.Event()
+        self.calls = 0
+
+    async def research(
+        self, text: str, history: History, steering: Steering, on_event: OnEvent
+    ) -> str:
+        self.calls += 1
+        if self.calls > 1:
+            return f"research:{text}"
+        for _ in range(self.deferrals):
+            try:
+                await self.gate.wait()
+                return f"research:{text}"
+            except asyncio.CancelledError:
+                continue
+        await self.gate.wait()
+        return f"research:{text}"
+
+
+def _pending_tasks() -> list[asyncio.Task[object]]:
+    current = asyncio.current_task()
+    return [t for t in asyncio.all_tasks() if t is not current and not t.done()]
+
+
+async def test_close_reclaims_a_superseded_worker_that_deferred_its_cancellation(make_harness):
+    worker = _DefersCancellation(deferrals=1)
+    h = make_harness(researcher=worker, close_grace_s=0.5)
+    try:
+        h.say(QQQ)
+        await h.routed()
+        h.say("actually make that SPY instead of QQQ")
+        await h.idle()
+        assert [p.text for p in h.slot_posts()] == [f"research:{SPY}"]
+        await h.d.close()
+        assert _pending_tasks() == []
+    finally:
+        worker.gate.set()
+
+
+async def test_close_reports_a_worker_it_cannot_stop_instead_of_hanging(make_harness):
+    worker = _DefersCancellation(deferrals=10)
+    h = make_harness(researcher=worker, close_grace_s=0.05)
+    try:
+        h.say(QQQ)
+        await h.routed()
+        h.say("actually make that SPY instead of QQQ")
+        await h.idle()
+        async with asyncio.timeout(1.0):
+            await h.d.close()
+        (abandoned,) = [e for e in h.log.events if e["type"] == "abandoned_tasks"]
+        assert abandoned["tasks"] == ["c#1@v1"]
+    finally:
+        worker.gate.set()
