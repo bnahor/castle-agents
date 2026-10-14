@@ -1,0 +1,25 @@
+# Pools for the property tests' random busy chats.
+max_gap_s = 1.2
+edit_rate = 0.4
+reply_rate = 0.15
+users = ["alice", "bob", "cara", "dave"]
+tickers = ["NVDA", "AMD", "AAPL", "TSLA", "QQQ", "SPY", "MSFT", "XLE", "INTC", "AVGO"]
+questions = [
+    "what does ETF stand for?",
+    "what's a P/E ratio?",
+    "is the market open on saturdays?",
+    "Analyze NVDA vs AMD margins",
+    "Summarize AAPL earnings risk",
+    "Why did TSLA drop?",
+    "Compare QQQ and SPY holdings",
+    "what's the latest price of MSFT?",
+    "breakdown of XLE exposure",
+    "what is a stock split?",
+]
+edits = [
+    "also include $ticker",
+    "actually make that $ticker instead of $other",
+    "nevermind the $other thing",
+    "and what about $ticker?",
+    "plus add a risk note",
+]

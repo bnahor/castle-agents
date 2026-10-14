@@ -1,0 +1,85 @@
+# Labelled routing decisions. `target` and `complexity` are checked only when given.
+
+[[cases]]
+name = "additive scope while running"
+requests = [{ id = "desk#1", seq = 1, user = "alice", status = "running", text = "Compare NVDA and AMD margins", msg_ids = ["m1"] }]
+messages = [{ msg_id = "m2", user = "alice", text = "also include INTC" }]
+expect = [{ msg_id = "m2", action = "amend_steer", target = "desk#1" }]
+
+[[cases]]
+name = "rewrite swaps the ticker"
+requests = [{ id = "desk#1", seq = 1, user = "cara", status = "running", text = "Analyze the top holdings of QQQ", msg_ids = ["m1"] }]
+messages = [{ msg_id = "m2", user = "cara", text = "actually make that SPY instead" }]
+expect = [{ msg_id = "m2", action = "amend_restart", target = "desk#1" }]
+
+[[cases]]
+name = "cancel names its request among several"
+requests = [
+    { id = "desk#1", seq = 1, user = "bob", status = "running", text = "Why did TSLA move last week?", msg_ids = ["m1"] },
+    { id = "desk#2", seq = 2, user = "bob", status = "running", text = "Summarize AAPL earnings risk", msg_ids = ["m2"] },
+]
+messages = [{ msg_id = "m3", user = "bob", text = "nevermind the TSLA thing" }]
+expect = [{ msg_id = "m3", action = "cancel", target = "desk#1" }]
+
+[[cases]]
+name = "unrelated question from the same user is new"
+requests = [{ id = "desk#1", seq = 1, user = "alice", status = "running", text = "Compare NVDA and AMD margins", msg_ids = ["m1"] }]
+messages = [{ msg_id = "m2", user = "alice", text = "what's a P/E ratio?" }]
+expect = [{ msg_id = "m2", action = "new", complexity = "simple" }]
+
+[[cases]]
+name = "two users on the same ticker are separate questions"
+requests = [{ id = "desk#1", seq = 1, user = "alice", status = "running", text = "Summarize NVDA's earnings risk", msg_ids = ["m1"] }]
+messages = [{ msg_id = "m2", user = "bob", text = "what was NVDA's last close?" }]
+expect = [{ msg_id = "m2", action = "new", complexity = "heavy" }]
+
+[[cases]]
+name = "ambiguous actually after delivery is a new question"
+requests = [{ id = "desk#1", seq = 1, user = "dave", status = "delivered", text = "What is an ETF?", msg_ids = ["m1"] }]
+messages = [{ msg_id = "m2", user = "dave", text = "actually, how is that different from a mutual fund?" }]
+expect = [{ msg_id = "m2", action = "new" }]
+
+[[cases]]
+name = "change after delivery becomes a follow-up"
+requests = [{ id = "desk#1", seq = 1, user = "alice", status = "delivered", text = "What was NVDA's last close?", msg_ids = ["m1"] }]
+messages = [{ msg_id = "m2", user = "alice", text = "and what about AMD?", reply_to = "m1" }]
+expect = [{ msg_id = "m2", action = "new", complexity = "heavy" }]
+
+[[cases]]
+name = "unrelated question in a reply thread is new"
+requests = [{ id = "desk#1", seq = 1, user = "alice", status = "running", text = "Compare NVDA and AMD margins", msg_ids = ["m1"] }]
+messages = [{ msg_id = "m2", user = "bob", text = "is the market open on saturdays?", reply_to = "m1" }]
+expect = [{ msg_id = "m2", action = "new", complexity = "simple" }]
+
+[[cases]]
+name = "rewrite of a message in the same batch"
+requests = []
+messages = [
+    { msg_id = "m1", user = "cara", text = "Analyze the top holdings of QQQ" },
+    { msg_id = "m2", user = "cara", text = "actually make that SPY instead of QQQ" },
+]
+expect = [
+    { msg_id = "m1", action = "new", complexity = "heavy" },
+    { msg_id = "m2", action = "amend_restart", target = "m1" },
+]
+
+[[cases]]
+name = "needs live data, so heavy"
+requests = []
+messages = [{ msg_id = "m1", user = "bob", text = "why did TSLA drop today?" }]
+expect = [{ msg_id = "m1", action = "new", complexity = "heavy" }]
+
+[[cases]]
+name = "cancel targets the speaker's own request"
+requests = [
+    { id = "desk#1", seq = 1, user = "alice", status = "running", text = "Compare NVDA and AMD margins", msg_ids = ["m1"] },
+    { id = "desk#2", seq = 2, user = "bob", status = "running", text = "Summarize AAPL earnings risk", msg_ids = ["m2"] },
+]
+messages = [{ msg_id = "m3", user = "bob", text = "cancel that, I don't need it anymore" }]
+expect = [{ msg_id = "m3", action = "cancel", target = "desk#2" }]
+
+[[cases]]
+name = "steer via reply"
+requests = [{ id = "desk#1", seq = 1, user = "bob", status = "running", text = "Summarize AAPL earnings risk", msg_ids = ["m1"] }]
+messages = [{ msg_id = "m2", user = "bob", text = "add dividends too", reply_to = "m1" }]
+expect = [{ msg_id = "m2", action = "amend_steer", target = "desk#1" }]

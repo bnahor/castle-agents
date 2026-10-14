@@ -1,0 +1,95 @@
+# Every tunable lives here. Prompts are in prompts/*.md, tool definitions in tools.toml,
+# simulation scripts in scenarios/*.toml. Point CASTLE_CONFIG_DIR at a copy of this
+# directory to run with different settings.
+
+[limits]
+heavy_global = 8          # research workers across all chats
+heavy_per_chat = 3        # so one busy chat cannot starve the others
+simple_global = 16        # quick answers, separate pool so they never queue behind research
+serial = false
+ordering = "bounded"      # "strict": always in ask order; "reply": as soon as ready, threaded;
+                          # "bounded": in ask order, but never held longer than max_hold_s
+max_hold_s = 1.5          # bounded mode: longest a finished answer waits for earlier ones
+status_after_s = 3.0      # head-of-line wait before a "still working" post
+recent_window = 12        # requests shown to the router
+route_batch_max = 8       # messages that queue up while the router is busy are routed together
+speculate_quick = true    # start the quick answer while the message is still being routed
+history_window = 20       # answered exchanges kept per chat for context
+retain_closed = 50        # answered or cancelled requests kept per chat for edits and replies
+request_deadline_s = 90.0 # a request that runs longer is answered with an apology and its slot released
+router_deadline_s = 15.0  # a router call that runs longer falls back to treating messages as new
+
+[phrases]
+ack_steer = "Adding that to #{seq}."
+ack_rewrite = "Updating #{seq}: {preview}"
+ack_cancel = "Okay, dropping #{seq}."
+already_closed = "#{seq} is already {status}."
+status_alone = "Still working on #{seq} ({preview})."
+status_one = "Still working on #{seq} ({preview}). 1 answer queued right behind it."
+status_many = "Still working on #{seq} ({preview}). {waiting} answers queued right behind it."
+apology = "Sorry, I hit an error on #{seq}. Ask again and I'll retry."
+not_processed = "Sorry, I couldn't process that message. Please send it again."
+follow_up = "{original} — follow-up: {addition}"
+fold = "{original}; also: {addition}"
+preview_chars = 60
+status_preview_chars = 48
+
+[claude]
+router_model = "claude-haiku-5-5"
+quick_model = "claude-haiku-5-5"
+research_model = "claude-opus-5-5"
+router_max_tokens = 1024
+quick_max_tokens = 1024
+research_max_tokens = 16000
+research_effort = "medium"
+research_speed = "fast"         # "fast": Opus fast mode, up to 2.5x output speed at 2x price
+research_max_steps = 8
+tool_timeout_s = 15.0
+betas = ["server-side-fallback-2026-07-01"]
+fallbacks = "default"
+escalate_sentinel = "ESCALATE"
+steer_prefix = "[addition from chat]"
+max_answer_words = 120
+history_turns = 3
+history_answer_chars = 400
+
+[claude.prompts]
+router = "prompts/router.md"
+quick = "prompts/quick.md"
+research = "prompts/research.md"
+tools = "tools.toml"
+
+[claude.replies]
+refusal = "I can't help with that one."
+out_of_steps = "I ran out of steps on this one; try narrowing the question."
+cut_short = "(cut short)"
+
+[massive]
+connect_timeout_s = 3.0
+read_timeout_s = 8.0
+retries = 1
+
+[mock]
+router_latency_s = 0.6        # a structured Haiku call; keep the fake honest
+quick_latency_s = 0.8
+research_base_s = 2.0
+research_spread_s = 4.0
+research_steps = 3
+
+[mock.patterns]
+cancel = ["never ?mind", "nvm", "cancel", "scratch that", "forget (it|that|the|about)"]
+rewrite = ["actually", "instead", "i meant", "wait[,\\s]", "correction"]
+steer = ["also", "and also", "plus", "oh and", "add"]
+heavy = ["analy[sz]e", "compare", "comparison", "holdings", "why", "drivers?", "summari[sz]e",
+         "earnings", "risk", "vs\\.?", "breakdown", "exposure", "last close"]
+needs_data = ["latest", "today", "right now", "current(ly)?"]
+
+[mock.replies]
+quick = "Quick answer: {text}"
+research = "Analysis of: {text}"
+also_covering = " (also covering: {additions})"
+
+[sim]
+default_scenario = "busy"
+default_scale = 0.25      # mock runs only: 0.25 = four times faster than real time
+log_dir = "runs"

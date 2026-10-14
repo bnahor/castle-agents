@@ -1,0 +1,18 @@
+# Tool definitions for the research subagent. Names must match MassiveTools methods.
+
+[[tools]]
+name = "get_company_details"
+description = "Company or fund reference data for a ticker: name, market cap, industry, short description."
+
+[[tools]]
+name = "get_previous_close"
+description = "Previous trading day's open, high, low, close and volume for a ticker."
+
+[ticker_schema]
+type = "object"
+required = ["ticker"]
+additionalProperties = false
+
+[ticker_schema.properties.ticker]
+type = "string"
+description = "Ticker symbol, e.g. NVDA"

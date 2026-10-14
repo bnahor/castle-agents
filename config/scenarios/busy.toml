@@ -1,0 +1,63 @@
+description = "One group chat: 12 messages in 10 s, with a steer, a rewrite, a cancel, an escalation and a reply-to follow-up."
+chat = "desk"
+
+[[messages]]
+t = 0.0
+user = "alice"
+text = "What's NVDA's last close and how does it compare to AMD?"
+
+[[messages]]
+t = 0.8
+user = "bob"
+text = "what does ETF stand for?"
+
+[[messages]]
+t = 1.5
+user = "cara"
+text = "Analyze the top holdings of QQQ and their concentration risk"
+
+[[messages]]
+t = 2.0
+user = "bob"
+text = "is the market open on saturdays?"
+
+[[messages]]
+t = 2.6
+user = "alice"
+text = "also include INTC in that comparison"
+
+[[messages]]
+t = 3.2
+user = "cara"
+text = "actually make that SPY instead of QQQ"
+
+[[messages]]
+t = 4.0
+user = "bob"
+text = "Why did TSLA move last week? give me the drivers"
+
+[[messages]]
+t = 5.0
+user = "alice"
+text = "what's a P/E ratio, quickly?"
+
+[[messages]]
+t = 5.5
+user = "bob"
+text = "nevermind the TSLA thing"
+
+[[messages]]
+t = 6.5
+user = "cara"
+text = "what's the latest price of MSFT?"
+
+[[messages]]
+t = 7.0
+user = "dave"
+text = "Summarize AAPL earnings risk vs MSFT"
+
+[[messages]]
+t = 9.5
+user = "alice"
+text = "and what about AVGO?"
+reply_to = "m1"
