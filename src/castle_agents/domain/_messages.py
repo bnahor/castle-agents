@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import NamedTuple
 
-from ._enums import PostKind
+from ._enums import Outcome, PostKind
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +24,7 @@ class Outbound:
     seq: int | None = None
     reply_to: str | None = None
     released_early: bool = False
+    outcome: Outcome = Outcome.ANSWERED
 
     @property
     def fills_slot(self) -> bool:

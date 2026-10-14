@@ -27,6 +27,12 @@ class Action(StrEnum):
     CANCEL = "cancel"
 
 
+class Outcome(StrEnum):
+    ANSWERED = "answered"
+    FAILED = "failed"
+    TIMED_OUT = "timed_out"
+
+
 class PostKind(StrEnum):
     ANSWER = "answer"
     STATUS = "status"

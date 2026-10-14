@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ..domain import Outbound, PostKind, shorten
+from ..domain import Outbound, Outcome, PostKind, shorten
 from ._config import Limits, Ordering, Phrases
 
 
@@ -17,6 +17,7 @@ class _Slot:
     head_since: float
     text: str | None = None
     kind: PostKind = PostKind.ANSWER
+    outcome: Outcome = Outcome.ANSWERED
     ready_at: float = 0.0
     released: bool = False
     explained: bool = False
@@ -51,9 +52,15 @@ class Orderer:
         if self.mode is not Ordering.REPLY:
             self._tick()
 
-    def complete(self, seq: int, text: str, kind: PostKind = PostKind.ANSWER) -> None:
+    def complete(
+        self,
+        seq: int,
+        text: str,
+        kind: PostKind = PostKind.ANSWER,
+        outcome: Outcome = Outcome.ANSWERED,
+    ) -> None:
         slot = self._slots[seq]
-        slot.text, slot.kind, slot.ready_at = text, kind, self._clock()
+        slot.text, slot.kind, slot.outcome, slot.ready_at = text, kind, outcome, self._clock()
         if self.mode is Ordering.REPLY:
             self._post(self._slots.pop(seq))
             return
@@ -138,5 +145,6 @@ class Orderer:
                 seq=slot.seq,
                 reply_to=slot.reply_to,
                 released_early=early,
+                outcome=slot.outcome,
             )
         )

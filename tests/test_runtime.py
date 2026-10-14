@@ -347,17 +347,37 @@ async def test_a_reply_reaches_its_request_even_outside_the_recent_window(make_h
     await h.idle()
 
 
-async def test_a_request_past_its_deadline_is_answered_with_an_apology_and_unblocks_others(
-    make_harness,
-):
-    h = make_harness(ordering="strict", request_deadline_s=0.05)
+async def test_a_request_past_its_deadline_times_out_and_unblocks_others(make_harness):
+    h = make_harness(ordering="strict", request_deadline_s=0.1)
     h.say(HEAVY)
     h.say(SIMPLE, user="bob")
     h.release(SIMPLE)
+    await h.routed()
+    h.say("also include INTC")
     await h.idle()
-    texts = [p.text for p in h.slot_posts()]
-    assert texts[0].startswith("Sorry, I hit an error on #1")
-    assert texts[1] == f"quick:{SIMPLE}"
+    first, second = h.slot_posts()
+    assert (first.outcome, first.text.startswith("Sorry, #1 took too long")) == ("timed_out", True)
+    assert (second.outcome, second.text) == ("answered", f"quick:{SIMPLE}")
+    m = compute(h.log.events, ordering=Ordering.STRICT)
+    assert (m.answers, m.failed_answers, m.additions_dropped) == (1, 1, 1)
+    assert m.invariants_ok
+
+
+class _Crashes:
+    async def research(
+        self, text: str, history: History, steering: Steering, on_event: OnEvent
+    ) -> str:
+        raise ConnectionError("provider unreachable")
+
+
+async def test_a_worker_error_is_reported_as_a_failure_not_an_answer(make_harness):
+    h = make_harness(researcher=_Crashes())
+    h.say(HEAVY)
+    await h.idle()
+    (post,) = h.slot_posts()
+    assert post.outcome == "failed" and post.text.startswith("Sorry, I hit an error on #1")
+    m = compute(h.log.events)
+    assert (m.answers, m.failed_answers, m.latency_mean_s) == (0, 1, 0.0)
 
 
 async def test_a_lone_long_request_gets_one_progress_post(make_harness):

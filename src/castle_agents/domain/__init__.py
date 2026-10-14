@@ -1,4 +1,4 @@
-from ._enums import Action, Kind, PostKind, Status
+from ._enums import Action, Kind, Outcome, PostKind, Status
 from ._messages import Exchange, Inbound, Outbound
 from ._requests import Addition, Request, RequestView, Steering
 from ._routing import Route, RouteBatch
@@ -11,6 +11,7 @@ __all__ = [
     "Inbound",
     "Kind",
     "Outbound",
+    "Outcome",
     "PostKind",
     "Request",
     "RequestView",

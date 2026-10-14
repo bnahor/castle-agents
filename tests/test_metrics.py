@@ -23,9 +23,16 @@ def asked(seq: int, version: int = 1) -> list[Event]:
     ]
 
 
-def posted(seq: int, version: int = 1, early: bool = False) -> Event:
+def posted(seq: int, version: int = 1, early: bool = False, outcome: str = "answered") -> Event:
     return ev(
-        "outbound", 1.0, kind="answer", seq=seq, request=f"c#{seq}", version=version, early=early
+        "outbound",
+        1.0,
+        kind="answer",
+        seq=seq,
+        request=f"c#{seq}",
+        version=version,
+        early=early,
+        outcome=outcome,
     )
 
 
@@ -105,3 +112,14 @@ def test_posting_out_of_order_violates_strict_ordering():
 def test_an_early_release_is_legal_only_in_bounded_mode(ordering, violations):
     events = [*asked(1), *asked(2), posted(2, early=True), posted(1)]
     assert broken(events, ordering).get("order_violations", 0) == violations
+
+
+def test_a_failed_answer_drops_its_additions_instead_of_losing_them():
+    events = [
+        *asked(1),
+        ev("addition_accepted", request="c#1", addition="m2", text="include INTC"),
+        posted(1, outcome="timed_out"),
+    ]
+    metrics = compute(events)
+    assert broken(events) == {}
+    assert (metrics.answers, metrics.failed_answers, metrics.additions_dropped) == (0, 1, 1)
