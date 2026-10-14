@@ -493,3 +493,26 @@ async def test_an_addition_reaches_only_the_current_generations_worker(make_harn
     finally:
         worker.go.set()
     await h.idle()
+
+
+class _RewritingRouter:
+    async def route(self, batch: Sequence[Inbound], recent: list[RequestView]) -> list[Route]:
+        return [
+            Route(
+                msg_id=m.msg_id,
+                action=Action.NEW,
+                complexity=Kind.SIMPLE,
+                text="Explain what an ETF is",
+            )
+            for m in batch
+        ]
+
+
+@pytest.mark.parametrize("speculate", [True, False])
+async def test_a_rewritten_question_is_answered_as_rewritten_never_from_the_raw_text(
+    make_harness, speculate
+):
+    h = make_harness(router=_RewritingRouter(), quick_delay_s=0.01, speculate_quick=speculate)
+    h.say("what does that mean?")
+    await h.idle()
+    assert [p.text for p in h.slot_posts()] == ["quick:Explain what an ETF is"]

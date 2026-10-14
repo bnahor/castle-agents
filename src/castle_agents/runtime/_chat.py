@@ -117,10 +117,13 @@ class ChatRuntime:
         self._log_route(msg, route)
         speculation = self._speculations.pop(msg.msg_id, None)
         if target is None:
-            head_start = speculation if route.complexity is Kind.SIMPLE else None
+            question = route.text or msg.text
+            # The speculation answered the raw message, so it only stands for that exact question.
+            usable = route.complexity is Kind.SIMPLE and question == msg.text
+            head_start = speculation if usable else None
             if speculation and head_start is None:
                 speculation.cancel()
-            self._admit(msg, route.text or msg.text, route.complexity, head_start)
+            self._admit(msg, question, route.complexity, head_start)
             return
         if speculation:
             speculation.cancel()
