@@ -150,7 +150,7 @@ only the log, and five invariants must be zero on every run:
 | missing posts | every admitted request's slot is resolved |
 | lost steers | every accepted addition is applied, folded into a rewrite, or explicitly dropped |
 
-The tests (60, about 12 s) were audited against a test-audit checklist
+The tests (66, about 13 s) were audited against a test-audit checklist
 ([DECISIONS.md §14](DECISIONS.md)): every assertion is about what was posted,
 which port did the work, or how long it took. None checks internal log events
 or call shapes, and no production code exists only for tests.
@@ -245,11 +245,20 @@ parallel subagents share a cacheable prompt prefix.
   refuses to start; `--mock-market-data` opts into fake figures explicitly.
 - Every request has a deadline (90 s) and every router call a deadline (15 s).
   Past it, the request is answered with an apology and its slot is released,
-  so an accepted slot always resolves.
+  so an accepted slot always resolves. Failures and timeouts are reported as
+  their own outcomes, never counted as answers.
+- A request accepts at most 5 additions of at most 400 characters each; past
+  that, the edit is refused with a receipt asking for a new question.
 - The finance is deliberately thin (previous close and company details): this
   option is about the runtime.
 
 ---
+
+## Workflow
+
+`main` only moves by merge. Each change is a branch (`feat/…`, `fix/…`,
+`docs/…`) cut from up-to-date `main`, must pass `make check`, and is merged
+with `--no-ff` so every feature stays one merge commit in the history.
 
 ## Initial Thoughts / My Musings
 
