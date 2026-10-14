@@ -101,6 +101,19 @@ Rules that make these safe:
 - **The checker verifies this per generation.** For every delivered answer, each
   accepted addition must be in that generation's starting scope or applied
   within it. An addition applied only to a discarded generation counts as lost.
+  "Applied" means delivered to the model, not that the model acted on it;
+  that's an answer-quality question, which this runtime doesn't grade.
+- **Each inbox belongs to one generation.** Delivery names the generation it
+  expects, and a restart or cancel closes the old inbox before opening the new
+  one, so a worker from a superseded generation can't receive its
+  replacement's edits (Codex's `turn/steer` uses the same expected-turn guard).
+- **Admission is bounded.** At most `max_additions` per request, each at most
+  `max_addition_chars`. Past either limit the edit is refused with a receipt
+  asking for a new question, not silently dropped or turned into one.
+- **Failures are outcomes, not answers.** A timeout or worker error still fills
+  its slot with an apology, but it's tagged `timed_out` or `failed`. Metrics
+  count it separately, leave it out of latency, and record its uncovered
+  additions as dropped rather than lost.
 
 Steer vs restart is a judgement call, so the router makes it. When in doubt it
 should restart: a restart wastes some tokens, a wrong steer gives a muddled
@@ -341,9 +354,26 @@ immediately (now timed from becoming the head), and `load_dotenv()` found the
 project's `.env` from the code's location rather than the working directory,
 so a "no key" test actually ran live.
 
+## 17. Harness research: what was adopted
+
+A separate survey of other harnesses (Codegraff, Codex, Claude Code, OpenCode,
+Goose, Factory, Pi, LangGraph, Temporal, ACP) reached the same conclusion this
+design started from: keep a small deterministic coordinator that owns request
+ids, scope, edits, versions and slots, and treat the worker as swappable.
+Adopted from it: typed outcomes (Goose), bounded addition admission
+(Codegraff), and an explicit expected-generation guard on delivery (Codex).
+Not adopted, deliberately: a capability-negotiated worker adapter (sessions,
+resume, replay). It's the right shape for plugging in another harness, but
+with one worker type it would be a refactor with nothing to test it against.
+
 ## What I would do next
 
 - **Pipelined routing** (§3), worth about 0.4 s of mean latency.
+- **A worker adapter with capabilities** (§17), once a second worker backend
+  is worth trying; Pi's agent core and OpenCode's session server are the two
+  smallest candidates.
+- **Answer-quality evaluation**, separate from the runtime invariants: did each
+  answer actually use its additions and answer the question?
 - **Scheduling priority**: restarts and the head-of-line request jump the lane,
   with aging so no chat starves. Needs a burst/restart benchmark to justify it.
 - **Router evals** on real chat logs: the live router classified "and what
