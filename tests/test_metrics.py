@@ -123,3 +123,19 @@ def test_a_failed_answer_drops_its_additions_instead_of_losing_them():
     metrics = compute(events)
     assert broken(events) == {}
     assert (metrics.answers, metrics.failed_answers, metrics.additions_dropped) == (0, 1, 1)
+
+
+def test_message_ids_are_scoped_to_their_chat_when_measuring_latency():
+    def chat(name: str, arrived: float) -> list[Event]:
+        request = f"{name}#1"
+        return [
+            ev("inbound", arrived, chat=name, msg_id="m1"),
+            ev("admit", 10.0, chat=name, request=request, seq=1, msg_id="m1", version=1),
+            ev("running", 10.0, chat=name, request=request, version=1, included=[]),
+            ev("done", 11.0, chat=name, request=request, version=1),
+            ev("outbound", 12.0, chat=name, kind="answer", seq=1, request=request, version=1),
+        ]
+
+    a, b = chat("a", 0.0), chat("b", 5.0)
+    metrics = compute([a[0], b[0], *a[1:], *b[1:]])
+    assert (metrics.latency_mean_s, metrics.latency_max_s) == (9.5, 12.0)
