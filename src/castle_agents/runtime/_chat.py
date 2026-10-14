@@ -180,6 +180,10 @@ class ChatRuntime:
         self._ack(msg, request, self._phrases.ack_rewrite.format(seq=request.seq, preview=preview))
 
     def _steer(self, msg: Inbound, request: Request, text: str) -> None:
+        if refusal := self._refuse_addition(request, text):
+            self._log("addition_rejected", request=request.id, addition=msg.msg_id, why=refusal)
+            self._ack(msg, request, refusal)
+            return
         addition = Addition(msg.msg_id, text)
         request.additions.append(addition)
         self._log("addition_accepted", request=request.id, addition=addition.id, text=text)
@@ -188,6 +192,14 @@ class ChatRuntime:
         else:
             self._restart(request, why="addition to a request that was not mid-tool-loop")
         self._ack(msg, request, self._phrases.ack_steer.format(seq=request.seq))
+
+    def _refuse_addition(self, request: Request, text: str) -> str | None:
+        if len(request.additions) >= self.limits.max_additions:
+            limit = self.limits.max_additions
+            return self._phrases.too_many_additions.format(seq=request.seq, limit=limit)
+        if len(text) > self.limits.max_addition_chars:
+            return self._phrases.addition_too_long.format(seq=request.seq)
+        return None
 
     def _admit(
         self, msg: Inbound, text: str, kind: Kind, head_start: asyncio.Task[str] | None = None
