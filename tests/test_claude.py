@@ -63,7 +63,7 @@ async def test_tool_results_and_steering_go_back_in_one_user_turn(settings: Sett
             _resp("tool_use", _text("checking"), _tool("t1", "NVDA"), _tool("t2", "AMD")),
             _resp("end_turn", _text("NVDA beat AMD.")),
         ],
-        during_call=lambda n: steering.push(Addition("m3", "include INTC")) if n == 1 else None,
+        during_call=lambda n: steering.push(Addition("m3", "include INTC"), 1) if n == 1 else None,
     )
     events: list[tuple[str, dict[str, Any]]] = []
     researcher = ClaudeResearcher(_client(fake), MockTools(), settings.claude)
@@ -82,7 +82,7 @@ async def test_addition_during_the_final_call_triggers_one_more_turn(settings: S
     steering = Steering()
     fake = FakeMessages(
         [_resp("end_turn", _text("draft")), _resp("end_turn", _text("final with INTC"))],
-        during_call=lambda n: steering.push(Addition("m3", "include INTC")) if n == 1 else None,
+        during_call=lambda n: steering.push(Addition("m3", "include INTC"), 1) if n == 1 else None,
     )
     researcher = ClaudeResearcher(_client(fake), MockTools(), settings.claude)
     assert await researcher.research("q", [], steering, _ignore) == "final with INTC"

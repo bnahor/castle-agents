@@ -14,11 +14,23 @@ class Addition:
 
 
 class Steering:
-    def __init__(self) -> None:
-        self._pending: deque[Addition] = deque()
+    """One generation's inbox. Delivery names the generation it expects, so an
+    addition can never reach a worker from a superseded generation."""
 
-    def push(self, addition: Addition) -> None:
+    def __init__(self, generation: int = 1) -> None:
+        self.generation = generation
+        self._pending: deque[Addition] = deque()
+        self._closed = False
+
+    def push(self, addition: Addition, generation: int) -> bool:
+        if self._closed or generation != self.generation:
+            return False
         self._pending.append(addition)
+        return True
+
+    def close(self) -> None:
+        self._closed = True
+        self._pending.clear()
 
     def drain(self) -> list[Addition]:
         drained = list(self._pending)

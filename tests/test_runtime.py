@@ -198,6 +198,20 @@ async def test_a_slow_chat_does_not_block_another_chat(make_harness):
     await h.idle()
 
 
+STUBBORNNESS = 3
+
+
+async def _wait_ignoring_cancellation(event: asyncio.Event) -> None:
+    """Like some client libraries: swallow a few cancellations before giving in."""
+    for _ in range(STUBBORNNESS):
+        try:
+            await event.wait()
+            return
+        except asyncio.CancelledError:
+            continue
+    await event.wait()
+
+
 class _IgnoresCancellation:
     def __init__(self) -> None:
         self.go = asyncio.Event()
@@ -205,12 +219,8 @@ class _IgnoresCancellation:
     async def research(
         self, text: str, history: History, steering: Steering, on_event: OnEvent
     ) -> str:
-        while True:
-            try:
-                await self.go.wait()
-                return f"research:{text}"
-            except asyncio.CancelledError:
-                continue
+        await _wait_ignoring_cancellation(self.go)
+        return f"research:{text}"
 
 
 async def test_a_worker_that_ignores_cancellation_still_cannot_post_a_stale_answer(
@@ -218,11 +228,13 @@ async def test_a_worker_that_ignores_cancellation_still_cannot_post_a_stale_answ
 ):
     stubborn = _IgnoresCancellation()
     h = make_harness(researcher=stubborn)
-    h.say(QQQ)
-    await h.routed()
-    h.say("actually make that SPY instead of QQQ")
-    await h.routed()
-    stubborn.go.set()
+    try:
+        h.say(QQQ)
+        await h.routed()
+        h.say("actually make that SPY instead of QQQ")
+        await h.routed()
+    finally:
+        stubborn.go.set()
     await h.idle()
     assert [p.text for p in h.slot_posts()] == [f"research:{SPY}"]
     assert compute(h.log.events).invariants_ok
@@ -450,3 +462,34 @@ async def test_an_overlong_addition_is_refused_and_the_work_continues(make_harne
     await h.idle()
     assert h.scripted.research_calls == [HEAVY]
     assert h.slot_posts()[0].text == f"research:{HEAVY}"
+
+
+class _KeepsEveryInbox:
+    def __init__(self) -> None:
+        self.inboxes: list[Steering] = []
+        self.go = asyncio.Event()
+
+    async def research(
+        self, text: str, history: History, steering: Steering, on_event: OnEvent
+    ) -> str:
+        self.inboxes.append(steering)
+        await _wait_ignoring_cancellation(self.go)
+        return f"research:{text}"
+
+
+async def test_an_addition_reaches_only_the_current_generations_worker(make_harness):
+    worker = _KeepsEveryInbox()
+    h = make_harness(researcher=worker)
+    try:
+        h.say(QQQ)
+        await h.routed()
+        h.say("actually make that SPY instead of QQQ")
+        await h.until(lambda: len(worker.inboxes) == 2)
+        h.say("also include INTC")
+        await h.routed()
+        old, current = worker.inboxes[:2]
+        assert old.drain() == []
+        assert [a.text for a in current.drain()] == ["include INTC"]
+    finally:
+        worker.go.set()
+    await h.idle()
