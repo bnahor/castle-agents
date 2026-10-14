@@ -30,6 +30,7 @@ class Limits(BaseModel, frozen=True):
     router_deadline_s: PositiveFloat
     max_additions: PositiveInt
     max_addition_chars: PositiveInt
+    close_grace_s: PositiveFloat
 
     def override(self, **changes: Any) -> Self:
         return self.model_validate(self.model_dump() | changes)
@@ -40,6 +41,7 @@ class Limits(BaseModel, frozen=True):
             status_after_s=self.status_after_s * scale,
             request_deadline_s=self.request_deadline_s * scale,
             router_deadline_s=self.router_deadline_s * scale,
+            close_grace_s=self.close_grace_s * scale,
         )
 
     def as_serial(self) -> Self:

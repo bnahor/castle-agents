@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 from collections import deque
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from ..domain import (
     Action,
@@ -28,6 +28,8 @@ from ._ports import OnEvent, Unsuccessful
 if TYPE_CHECKING:
     from ._dispatcher import Dispatcher
 
+T = TypeVar("T")
+
 
 class ChatRuntime:
     def __init__(self, chat_id: str, dispatcher: Dispatcher) -> None:
@@ -38,6 +40,7 @@ class ChatRuntime:
         self.history: deque[Exchange] = deque(maxlen=self.limits.history_window)
         self._by_msg: dict[str, Request] = {}
         self._speculations: dict[str, asyncio.Task[str]] = {}
+        self._owned: set[asyncio.Task[Any]] = set()
         self._phrases = dispatcher.phrases
         self._seqs = itertools.count(1)
         self._queue: asyncio.Queue[Inbound] = asyncio.Queue()
@@ -46,14 +49,15 @@ class ChatRuntime:
         self.orderer = Orderer(
             chat_id, self._post, dispatcher.sink.now, self.limits, dispatcher.phrases
         )
-        self._route_task = asyncio.create_task(self._route_loop(), name=f"route:{chat_id}")
+        self._route_task = self._own(
+            asyncio.create_task(self._route_loop(), name=f"route:{chat_id}")
+        )
 
     def submit(self, msg: Inbound) -> None:
         self._log("inbound", msg_id=msg.msg_id, user=msg.user, text=msg.text, reply_to=msg.reply_to)
         if self.limits.speculate_quick:
-            self._speculations[msg.msg_id] = self.d.executor.speculate(
-                msg.text, tuple(self.history)
-            )
+            speculation = self.d.executor.speculate(msg.text, tuple(self.history))
+            self._speculations[msg.msg_id] = self._own(speculation)
         self._queue.put_nowait(msg)
 
     async def settle(self) -> bool:
@@ -65,12 +69,21 @@ class ChatRuntime:
 
     async def close(self) -> None:
         self.orderer.close()
-        tasks: list[asyncio.Task[Any]] = [self._route_task, *self._speculations.values()]
-        for request in self.requests.values():
-            tasks += [task for task in (request.task, request.head_start) if task]
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+        pending = set(self._owned)
+        for _ in range(2):
+            if not pending:
+                return
+            for task in pending:
+                task.cancel()
+            _, pending = await asyncio.wait(pending, timeout=self.limits.close_grace_s)
+        if pending:
+            self._log("abandoned_tasks", tasks=sorted(task.get_name() for task in pending))
+
+    def _own(self, task: asyncio.Task[T]) -> asyncio.Task[T]:
+        # Every launched task stays owned until it finishes, whichever generation it ran for.
+        self._owned.add(task)
+        task.add_done_callback(self._owned.discard)
+        return task
 
     # Routing is serial within a chat so slots follow arrival order and every edit is
     # routed against an up-to-date view. Messages that arrive meanwhile are routed together.
@@ -245,7 +258,10 @@ class ChatRuntime:
 
     def _start(self, request: Request) -> None:
         request.status = Status.QUEUED
-        request.task = asyncio.create_task(self._work(request, request.version), name=request.id)
+        name = f"{request.id}@v{request.version}"
+        request.task = self._own(
+            asyncio.create_task(self._work(request, request.version), name=name)
+        )
 
     def _restart(self, request: Request, why: str) -> None:
         if request.status is Status.QUEUED and request.head_start is None:

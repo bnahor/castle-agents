@@ -20,6 +20,7 @@ request_deadline_s = 90.0 # a request that runs longer is answered with an apolo
 router_deadline_s = 15.0  # a router call that runs longer falls back to treating messages as new
 max_additions = 5         # additions accepted per request; past this, ask for a new question
 max_addition_chars = 400  # longest single addition accepted
+close_grace_s = 2.0       # on shutdown: cancel, wait this long, cancel again, wait, then abandon
 
 [phrases]
 ack_steer = "Adding that to #{seq}."
