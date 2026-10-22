@@ -36,7 +36,9 @@ can be posted.
 
 ## What it looks like
 
-The `busy` scenario, **live** (Claude + Massive): four people, 12 messages in 10
+The `busy` scenario, **live** (Claude + Massive), recorded in **bounded** ordering
+(`--ordering bounded`), which is why some quick answers post early as replies:
+four people, 12 messages in 10
 seconds, including an addition, a rewrite, a cancel, a quick question that needs
 live data, and a reply-to follow-up. Answers are truncated here; the full run is
 in [docs/live-run.md](docs/live-run.md).
@@ -67,7 +69,7 @@ in [docs/live-run.md](docs/live-run.md).
 
 ## Results
 
-**Live** (Claude + Massive), the `busy` scenario, same code; the baseline answers
+**Live** (Claude + Massive), the `busy` scenario in bounded ordering, same code; the baseline answers
 one request at a time per chat, in arrival order:
 
 | | one at a time | parallel |
@@ -103,9 +105,10 @@ Measured first, then fixed, in order of impact ([DECISIONS.md §13](DECISIONS.md
   Lowering effort barely helped: the time is the tool round-trip and the output.
 - **Shorter answers**: research answers are capped at ~120 words with no
   tables. Output tokens fell 22%, and the answers suit a group chat better.
-- **Bounded ordering** (default): an answer waits for earlier ones for at most
-  1.5 s, then posts as a reply to its question. In order when that's cheap,
-  never stuck behind a slow one.
+- **Bounded ordering** (opt-in, `--ordering bounded`): an answer waits for
+  earlier ones for at most 1.5 s, then posts as a reply to its question. In
+  order when that's cheap, never stuck behind a slow one. The default stays
+  strict because the brief asks for an ordered stream.
 - **Speculative quick answers**: the cheap answer starts when the message
   arrives, in parallel with routing; if the router says "heavy" or "edit", it's
   cancelled. Saves about 1 s per simple question for a fraction of a cent.
@@ -144,8 +147,8 @@ promise different things:
 
 | mode | guarantee | `busy`, mock, mean / p95 |
 |---|---|---:|
-| `strict` | Answers post in exactly the order questions were asked, always. | 5.50 s / 6.70 s |
-| `bounded` (default) | In order, except an answer that has been ready for `max_hold_s` (1.5 s) posts early as a reply to its question. Every early post is marked and counted. | 4.42 s / 6.70 s |
+| `strict` (default) | Answers post in exactly the order questions were asked, always. | 5.50 s / 6.70 s |
+| `bounded` | In order, except an answer that has been ready for `max_hold_s` (1.5 s) posts early as a reply to its question. Every early post is marked and counted. | 4.42 s / 6.70 s |
 | `reply` | No ordering across answers; each posts when ready, threaded to its question. | 3.67 s / 6.69 s |
 
 To demo strict ordering on its own: `uv run castle-agents sim busy --ordering strict`.
@@ -322,7 +325,7 @@ mutation checked it too; removed the version check and nothing failed at first (
 finance kept thin on purpose (prev close + company details from massive), this one's about the runtime
 
 latency was bad so measured before touching anything. split every answer into routing / queued / working / held for order
-- holding answers for order was 37% of the wait, so default is now bounded: in order unless an answer has been waiting 1.5s, then it posts as a reply
+- holding answers for order was 37% of the wait, so built bounded mode: in order unless an answer has been waiting 1.5s, then it posts as a reply. kept strict as the default tho, the brief literally asks for an ordered stream. bounded is one flag away and i can show the numbers
 - quick answers start the moment a msg lands, in parallel w the router; heavy → just cancel it. haiku is cheap enough that the wasted calls dont matter
 - msgs that pile up while the router is busy go in one call (3 msgs 1.35s vs ~4s)
 - opus fast mode halved research (~10s → ~5s), effort low did basically nothing. the time is the tool round trip + output, so also capped answers at ~120 words which honestly reads better in a group chat anyway

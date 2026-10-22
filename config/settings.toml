@@ -7,7 +7,7 @@ heavy_global = 8          # research workers across all chats
 heavy_per_chat = 3        # so one busy chat cannot starve the others
 simple_global = 16        # quick answers, separate pool so they never queue behind research
 serial = false
-ordering = "bounded"      # "strict": always in ask order; "reply": as soon as ready, threaded;
+ordering = "strict"       # "strict": always in ask order (default, as the brief asks); "reply": as soon as ready, threaded;
                           # "bounded": in ask order, but never held longer than max_hold_s
 max_hold_s = 1.5          # bounded mode: longest a finished answer waits for earlier ones
 status_after_s = 3.0      # head-of-line wait before a "still working" post
