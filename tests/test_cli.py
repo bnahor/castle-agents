@@ -47,7 +47,8 @@ def test_the_chat_cli_reads_user_reply_and_text_from_each_line(tmp_path: Path):
 def test_a_compressed_sim_still_releases_held_answers_in_bounded_mode(tmp_path: Path):
     root = tmp_path / "config"
     shutil.copytree(config_dir(), root)
-    out = _cli(root, "sim", "busy", "--mode", "parallel", "--scale", "0.05", "--quiet")
+    args = ("sim", "busy", "--mode", "parallel", "--ordering", "bounded", "--scale", "0.05")
+    out = _cli(root, *args, "--quiet")
     released = next(line for line in out.splitlines() if line.startswith("released early"))
     assert int(released.split()[-1]) > 0
 

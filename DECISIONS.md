@@ -35,15 +35,18 @@ Three modes, set in `config/settings.toml`:
   `status_after_s`, so the chat is never silent without a reason.
 - **reply**: answers post as soon as they are ready, each as a reply to the
   message that asked it. Lowest latency; order is carried by threading.
-- **bounded** (default): in order, but a finished answer waits at most
+- **bounded** (opt-in): in order, but a finished answer waits at most
   `max_hold_s` (1.5 s) for earlier ones, then posts as a reply to its question.
 
-I started with strict because the brief asks for "a clear, ordered stream of
-answers". Measuring changed my mind: answers held for order were 37% of mean
-latency, mostly quick answers stuck behind research. Bounded keeps the stream
-in order whenever that's cheap and caps the cost when it isn't, and the early
-answer is threaded to its own question, so it still reads clearly. A timer
-releases overdue answers, so the cap holds even when nothing else happens.
+**Strict is the default**, because the brief asks for "a clear, ordered stream of
+answers" and strict is the only mode that guarantees it literally. Measuring
+showed what that costs: answers held for order were 37% of mean latency, mostly
+quick answers stuck behind research. Bounded is the improvement I'd argue for:
+it keeps the stream in order whenever that's cheap, caps the cost when it isn't
+(mock `busy` mean 5.50 s → 4.42 s), and threads each early answer to its own
+question so it still reads clearly. A timer releases overdue answers, so the cap
+holds even when nothing else happens. It's one config line or `--ordering
+bounded` away; whether to ship it is a product decision, not a technical one.
 
 ## 3. Routing is serial within a chat, batched, and parallel across chats
 

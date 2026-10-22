@@ -5,7 +5,8 @@ Recorded 14 October 2026 with `uv run castle-agents sim busy --provider claude -
 - **Models:** router and quick answers `claude-haiku-5-5`; research `claude-opus-5-5`, effort `medium`, fast mode.
 - **Market data:** live, from Massive (previous close and company details only). Figures are for the
   last trading session before the run, 13 October 2026.
-- **Settings:** the shipped `config/settings.toml` (bounded ordering, batched routing, speculative quick answers).
+- **Settings:** `config/settings.toml` as shipped at the time, with **bounded** ordering (now opt-in via
+  `--ordering bounded`; the default is strict), batched routing and speculative quick answers.
 - **The script** (`config/scenarios/busy.toml`): four people, 12 messages in 10 seconds, including an
   addition (m5 adds INTC to #1), a rewrite (m6 switches #3 from QQQ to SPY), a cancel (m9 drops #5),
   a quick question that needs live data (#7), and a reply-to follow-up (m12 → #9).
