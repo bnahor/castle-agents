@@ -334,7 +334,7 @@ latency was bad so measured before touching anything. split every answer into ro
 ran the tests through a test-audit checklist too. the fake returned the same text for quick vs research so tests couldnt even tell which path answered hmmm. fixed that, swapped log-event asserts for actual behaviour, and every latency test has a "feature off must be slower" control
 one mutation made the suite hang instead of fail, so everything waits under a timeout now
 
-had someone review it cold, they found a real one: an addition the worker already applied could vanish if the answer got restarted later (it only lived in the inbox). additions get an id now and live on the request, every restart starts from base question + all of them
+ran a cold AI review over it (fresh session, just the repo + brief) and it found a real one: an addition the worker already applied could vanish if the answer got restarted later (it only lived in the inbox). additions get an id now and live on the request, every restart starts from base question + all of them
 the checker had holes too (compared against the last "done" not the current version, keyed steers by text) so it gets its own tests w deliberately broken logs
 router eval on 12 hand labelled cases: live haiku 13/13 after one prompt line. the regex mock gets 10/13, which is kinda the point of it being a mock
 fun one: load_dotenv() looks for .env from where the code lives, not where you run it, so my "no key" test quietly ran live lol

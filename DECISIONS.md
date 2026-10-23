@@ -337,7 +337,8 @@ cap on in-flight requests and overflow handling, for no speed gain at this size.
 
 ## 16. External review: findings and what changed
 
-An independent review of an earlier snapshot scored it 84/100 and listed eight
+A separate AI review pass on an earlier snapshot (a fresh session given only the
+repo and the brief) scored it 84/100 and listed eight
 findings. I verified each against the current code before changing anything:
 
 | Finding | Verdict | Resolution |
@@ -369,9 +370,9 @@ Not adopted, deliberately: a capability-negotiated worker adapter (sessions,
 resume, replay). It's the right shape for plugging in another harness, but
 with one worker type it would be a refactor with nothing to test it against.
 
-## 18. Second review: four more fixes
+## 18. Second AI review pass: four more fixes
 
-A second review of the merged `main` found four issues, all reproduced and fixed
+A second AI review pass over the merged `main` found four issues, all reproduced and fixed
 on their own branches with tests that fail with the fix reverted:
 
 | Finding | Fix |
